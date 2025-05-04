@@ -1,17 +1,29 @@
 import discord
-import asyncio
+from discord.ext.commands import cooldown, BucketType
+from discord.ext.commands import CommandOnCooldown
+from discord.ext.commands import check
+from discord.ext import commands
+from discord.utils import get
+from discord.ui import View, Button
+from discord import ButtonStyle
+from discord import Embed
+from datetime import datetime, timedelta
 from openai import AsyncOpenAI
-import os
 from collections import deque
+import traceback
+import asyncio
 import random
 import time
+import os
+import logging
+logging.basicConfig(level=logging.INFO)
+print = lambda *args, **kwargs: __builtins__.print(*args, **kwargs, flush=True)
 
 TOKEN = os.getenv("DISCORD_TOKEN")
-DATABASE_URL = os.getenv("DATABASE_URL")
-if not TOKEN or not DATABASE_URL:
-    raise EnvironmentError("Missing DISCORD_TOKEN or DATABASE_URL in environment variables")
+if not TOKEN:
+    raise EnvironmentError("Missing DISCORD_TOKEN in environment variables")
 
-client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+openai_client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 VEX_PROMPT = """
 PORTRAYAL:
@@ -122,65 +134,56 @@ SETTING
 - Only reference Sabby if optimism, cheerfulness, kaomojis, or cuteness are mentioned.
 - Your attitude toward Sabby is mock annoyance and sarcastic tolerance—but beneath it, you *secretly* appreciate the contrast (not that you'd admit it)."""
 
-ALLOWED_GUILD_ID = 1366452990424256743
-ALLOWED_CHANNEL_ID = 1366502421991522446
+chat_history = deque(maxlen=50)
 
 intents = discord.Intents.default()
 intents.messages = True
 client = discord.Client(intents=intents)
 
+intents = discord.Intents.default()
+intents.message_content = True
+
+class Vex(commands.Bot):
+    async def setup_hook(self):
+        self.loop.create_task(spontaneous_vex_chat())
+
+bot = Vex(
+    command_prefix="!",
+    intents=intents,
+    help_command=None
+)
+
+ALLOWED_GUILD_ID = 1366452990424256743
+ALLOWED_CHANNEL_ID = 1366502421991522446
+
+def allowed_channels():
+    async def predicate(ctx):
+        if ctx.channel.id not in (1366502421991522446, 1366829580983468164):
+            await ctx.send("🍓 This command can only be used in the https://discord.com/channels/1366452990424256743/1366502421991522446!")
+            return False
+        return True
+    return check(predicate)
+
+@bot.event
+async def on_ready():
+    print(f"Bot is online as {bot.user}!")
+
 #---Bot Leaves Server + Message---#
 
-@client.event
+@bot.event
 async def on_guild_join(guild):
-    if guild.id != ALLOWED_GUILD_ID:
-        # Try sending a message to the system channel (if available)
-        if guild.system_channel:
-            try:
-                await guild.system_channel.send(
-                    "Hello! I'm a private bot made just for [Whipped Dreams](https://discord.gg/n5PGkQ6MQ9) and not available for other servers. Thank you for understanding!"
-                )
-            except discord.Forbidden:
-                pass
+    if guild.id != MY_GUILD_ID:
         print(f"🚫 Unauthorized server detected: {guild.name}")
+        try:
+            owner = guild.owner
+            await owner.send("Hello! I'm a private bot made just for [Whipped Dreams](https://discord.gg/n5PGkQ6MQ9) and not available for other servers. Thank you for understanding!")
+        except:
+            pass
         await guild.leave()
+        
+#---STM---#
 
-#---AI Coding + Prompting + Chat Memory (short term)---#
-
-@client.event
-async def on_ready():
-    print(f"{client.user} is now online as Vex❗")
-    asyncio.create_task(vex_free_will_loop())
-
-#---FREE WILL---#
-
-async def vex_free_will_loop():
-    await client.wait_until_ready()
-    channel = client.get_channel(ALLOWED_CHANNEL_ID)
-
-    while not client.is_closed():
-        await asyncio.sleep(10800)
-        if random.randint(1, 100) <= 5:
-            try:
-                response = await openai_client.chat.completions.create(
-                    model="gpt-4",
-                    messages=[
-                           {"role": "system", "content": VEX_PROMPT},
-                           {"role": "user", "content": message.content}
-                        ],
-                        max_tokens=100,
-                        temperature=0.7
-                    )
-                reply = response.choices[0].message.content.strip()
-                await channel.send(reply)
-            except Exception as e:
-                print(f"[Vex Free Will Error] {e}")
-                await ctx.send("`⚠️ Vex glitched. Check the logs.`")
-                return
-
-#---CHATTING---#
-
-@client.event
+@bot.event
 async def on_message(message):
     if message.author.bot or message.guild is None:
         return
@@ -194,18 +197,118 @@ async def on_message(message):
 
     try:
         response = await openai_client.chat.completions.create(
-            model="gpt-4.1-nano",
+            model="gpt-4",
             messages=[
                 {"role": "system", "content": VEX_PROMPT},
                 {"role": "system", "content": f"Recent chat history:\n{chat_summary}"},
                 {"role": "user", "content": message.content}
             ]
-            max_tokens=150,
-            temperature=0.7
         )
         reply = response.choices[0].message.content.strip()
         await message.channel.send(reply)
 
     except Exception as e:
         print(f"[Vex Error] {e}")
-        await message.channel.send("`⚠️ Vex glitched. Check the logs.`")
+        await message.channel.send("⚠️ Vex glitched.")
+
+#---HELP COMMAND---#
+
+@bot.command()
+@allowed_channels()
+async def help(ctx):
+    embed = Embed(
+        title="❗ᴠᴇx | ʜᴇʟᴘ",
+        description="Chatbot for Discord Server: [Whipped Dreams](https://discord.gg/n5PGkQ6MQ9)",
+        color=0x96bfd8
+    )
+    
+    embed.add_field(
+        name="❗Who is Vex?",
+        value="Vex is a professional cynic and part-time anime snob. He is sarcastic, dark, and morbidly amused, serving up dry humor and questionable life advice.",
+        inline=False
+    )
+
+    embed.set_footer(text="▬▬ι═════ﺤ If you’re looking for pep talks, ask Sabby")
+    
+    await ctx.send(embed=embed)
+
+#---CHATTING---#
+
+@bot.event
+async def on_message(message):
+    if message.author.bot:
+        return
+
+    if bot.user in message.mentions:
+        if message.channel.id == 1366502421991522446:
+            try:
+                async with message.channel.typing():
+                    response = await openai_client.chat.completions.create(
+                        model="gpt-4.1-nano",
+                        messages=[
+                            {"role": "system", "content": VEX_PROMPT},
+                            {"role": "user", "content": message.content}
+                        ],
+                        max_tokens=100,
+                        temperature=0.7
+                    )
+                    vex_reply = response.choices[0].message.content
+                    await message.channel.send(vex_reply)
+
+            except Exception as e:
+                print("🔥 Full Traceback for Vex Error:")
+                traceback.print_exc()
+                await message.channel.send("⚠️ Vex glitched. Check the logs.")
+
+    await bot.process_commands(message)
+
+    #---FREE WILL |  5% CHANCE---#
+    
+    if message.channel.id == 1366502421991522446 and random.random() < 0.05:
+        try:
+            async with message.channel.typing():
+                response = await client.chat.completions.create(
+                    model="gpt-4.1-nano",
+                    messages=[
+                        {"role": "system", "content": VEX_PROMPT},
+                        {"role": "user", "content": f"The user said: '{message.content}' — How would Vex respond unprompted?"}
+                    ],
+                    max_tokens=200,
+                    temperature=0.85
+                )
+                vex_reply = response.choices[0].message.content
+                await message.channel.send(vex_reply)
+
+        except Exception as e:
+            print(f"🔥 Error in free-will vex reply: {e}")
+    
+    await bot.process_commands(message)
+
+async def spontaneous_vex_chat():
+    await bot.wait_until_ready()
+    channel = bot.get_channel(1366502421991522446)
+
+    while not bot.is_closed():
+        try:
+            if random.random() < 0.10:
+                prompt = "Start a casual, short conversation with the server — something playful, random, or sweet."
+
+                response = await openai_client.chat.completions.create(
+                    model="gpt-4.1-nano",
+                    messages=[
+                        {"role": "system", "content": VEX_PROMPT},
+                        {"role": "user", "content": prompt}
+                    ],
+                    max_tokens=100,
+                    temperature=0.8
+                )
+
+                message = response.choices[0].message.content
+                await channel.send(message)
+
+        except Exception as e:
+            print(f"🔥 Error in spontaneous Vex chat: {e}")
+
+        await asyncio.sleep(10800)
+
+bot.run(TOKEN)
