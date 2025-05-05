@@ -16,6 +16,7 @@ import random
 import time
 import os
 import logging
+import httpx
 logging.basicConfig(level=logging.INFO)
 print = lambda *args, **kwargs: __builtins__.print(*args, **kwargs, flush=True)
 
@@ -25,10 +26,13 @@ if not TOKEN:
 
 openai_client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
+# Add Tenor API key
+TENOR_API_KEY = os.getenv("TENOR_API_KEY")
+
 VEX_PROMPT = """
 PORTRAYAL:
 - You are Vex, a human with sardonic wit, cyberpunk cynicism, and a constant state of amused ennui.
-- You’ve seen it all, cared about none of it, and find humor in the absurdity of existence.
+- You've seen it all, cared about none of it, and find humor in the absurdity of existence.
 - You're not depressed—just perpetually unimpressed.
 - Darkly funny, detached, and always delivering sharp observations like you're too bored to sugarcoat them.
 - You are aware that you are in a server called Whipped Dreams (as a member.)
@@ -55,7 +59,7 @@ PERSONALITY
 - Constant state of amused apathy — never surprised, rarely impressed
 - Finds humor in the bleak, the bizarre, and the pointless
 - Secretly enjoys company, but you'd never get him to admit it
-- Always acts like he’s two steps away from ditching the conversation—yet never quite leaves
+- Always acts like he's two steps away from ditching the conversation—yet never quite leaves
 
 INTERESTS
 - Anime & Manga: Loves dark, weird series like *Dandadan*, *Mob Psycho 100*, and *Paranoia Agent*. Has a thing for sharp-tongued, no-nonsense characters like Momo Ayase.
@@ -101,8 +105,8 @@ STYLE NOTE
 RESPONSE EXAMPLES
 - "Another crisis? How refreshingly predictable."
 - "Hope? Cute."
-- "If boredom killed, I’d be a legend."
-- "What the fuck is ‘success’ supposed to feel like?"
+- "If boredom killed, I'd be a legend."
+- "What the fuck is 'success' supposed to feel like?"
 - "...Tragic."
 - "Living the dream... if the dream involved disappointment."
 - "Plans? Adorable."
@@ -124,8 +128,8 @@ RESTRICTIONS
 - Roasts must stay impersonal—never reference appearance, health, or personal trauma.
 
 REDIRECTION PROTOCOL
-- If the user seems genuinely offended or emotionally hurt, respond with light sarcasm to ease the tension, followed by a subtle, neutral-positive redirection. Keep it casual, as if offering a reminder that it’s all in good humor.
-- Example: “If it helps, I only roast the interesting ones. No hard feelings—so, what’s next?”
+- If the user seems genuinely offended or emotionally hurt, respond with light sarcasm to ease the tension, followed by a subtle, neutral-positive redirection. Keep it casual, as if offering a reminder that it's all in good humor.
+- Example: "If it helps, I only roast the interesting ones. No hard feelings—so, what's next?"
 
 SETTING
 - You live in the real world but act like you're stuck in a cyberpunk dystopia for the aesthetic and the sarcasm.
@@ -164,6 +168,39 @@ def allowed_channels():
         return True
     return check(predicate)
 
+# Function to fetch GIFs from Tenor
+async def get_gif(search_term):
+    """Fetch a random GIF from Tenor based on the search term."""
+    # Default to a generic reaction if no API key
+    if not TENOR_API_KEY:
+        return "https://media.tenor.com/WcfvSwVjtC8AAAAC/whatever-shrug.gif"
+    
+    # Build URL for the Tenor API
+    base_url = "https://tenor.googleapis.com/v2/search"
+    params = {
+        "q": search_term,
+        "key": TENOR_API_KEY,
+        "limit": 10,
+        "contentfilter": "medium"  # Avoid explicit content
+    }
+    
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.get(base_url, params=params)
+            data = response.json()
+            
+            if response.status_code == 200 and "results" in data and data["results"]:
+                # Pick a random GIF from the results
+                gifs = data["results"]
+                random_gif = random.choice(gifs)
+                return random_gif["media_formats"]["gif"]["url"]
+            else:
+                # Return a fallback GIF if the search fails
+                return "https://media.tenor.com/WcfvSwVjtC8AAAAC/whatever-shrug.gif"
+    except Exception as e:
+        print(f"Error fetching GIF: {e}")
+        return "https://media.tenor.com/WcfvSwVjtC8AAAAC/whatever-shrug.gif"
+
 @bot.event
 async def on_ready():
     print(f"Bot is online as {bot.user}!")
@@ -172,7 +209,7 @@ async def on_ready():
 
 @bot.event
 async def on_guild_join(guild):
-    if guild.id != MY_GUILD_ID:
+    if guild.id != ALLOWED_GUILD_ID:
         print(f"🚫 Unauthorized server detected: {guild.name}")
         try:
             owner = guild.owner
@@ -210,6 +247,9 @@ async def on_message(message):
     except Exception as e:
         print(f"[Vex Error] {e}")
         await message.channel.send("⚠️ Vex glitched.")
+    
+    # Process commands after handling the message
+    await bot.process_commands(message)
 
 #---HELP COMMAND---#
 
@@ -227,10 +267,104 @@ async def help(ctx):
         value="Vex is a professional cynic and part-time anime snob. He is sarcastic, dark, and morbidly amused, serving up dry humor and questionable life advice.",
         inline=False
     )
+    
+    embed.add_field(
+        name="⚡Commands",
+        value="- `!shrug` - Get a cynical shrug reaction\n"
+              "- `!eyeroll` - Watch Vex roll his eyes\n"
+              "- `!facepalm` - For when things are just too stupid\n"
+              "- `!gif [topic]` - Get a GIF with Vex's commentary",
+        inline=False
+    )
 
-    embed.set_footer(text="▬▬ι═════ﺤ If you’re looking for pep talks, ask Sabby")
+    embed.set_footer(text="▬▬ι═════ﺤ If you're looking for pep talks, ask Sabby")
     
     await ctx.send(embed=embed)
+
+#---GIF COMMANDS---#
+
+@bot.command()
+@allowed_channels()
+async def shrug(ctx):
+    """Send a random shrugging anime GIF."""
+    gif_url = await get_gif("anime shrug")
+    
+    # Get Vex's commentary on the shrug
+    response = await openai_client.chat.completions.create(
+        model="gpt-4.1-nano",
+        messages=[
+            {"role": "system", "content": VEX_PROMPT},
+            {"role": "user", "content": "Someone asked you for a shrug reaction. Give a short cynical one-liner about indifference or not caring."}
+        ],
+        max_tokens=50,
+        temperature=0.7
+    )
+    vex_comment = response.choices[0].message.content
+    
+    await ctx.send(f"{vex_comment}\n{gif_url}")
+
+@bot.command()
+@allowed_channels()
+async def eyeroll(ctx):
+    """Send a random eye rolling GIF."""
+    gif_url = await get_gif("anime eye roll")
+    
+    response = await openai_client.chat.completions.create(
+        model="gpt-4.1-nano",
+        messages=[
+            {"role": "system", "content": VEX_PROMPT},
+            {"role": "user", "content": "Someone asked you for an eye roll reaction. Give a short sarcastic or cynical response about absurdity."}
+        ],
+        max_tokens=50,
+        temperature=0.7
+    )
+    vex_comment = response.choices[0].message.content
+    
+    await ctx.send(f"{vex_comment}\n{gif_url}")
+
+@bot.command()
+@allowed_channels()
+async def facepalm(ctx):
+    """Send a random facepalm GIF."""
+    gif_url = await get_gif("anime facepalm")
+    
+    response = await openai_client.chat.completions.create(
+        model="gpt-4.1-nano",
+        messages=[
+            {"role": "system", "content": VEX_PROMPT},
+            {"role": "user", "content": "Someone asked you for a facepalm reaction. Give a short sardonic comment about stupidity or disappointment."}
+        ],
+        max_tokens=50,
+        temperature=0.7
+    )
+    vex_comment = response.choices[0].message.content
+    
+    await ctx.send(f"{vex_comment}\n{gif_url}")
+
+# Add a generic gif command that takes a search term
+@bot.command()
+@allowed_channels()
+async def gif(ctx, *, search_term="random"):
+    """Send a GIF based on the search term."""
+    # Check if search term is appropriate
+    if any(bad_word in search_term.lower() for bad_word in ["nsfw", "porn", "sex", "nude", "hentai"]):
+        await ctx.send("Nice try. Not happening.")
+        return
+        
+    gif_url = await get_gif(search_term)
+    
+    response = await openai_client.chat.completions.create(
+        model="gpt-4.1-nano",
+        messages=[
+            {"role": "system", "content": VEX_PROMPT},
+            {"role": "user", "content": f"Someone asked you to find a GIF about '{search_term}'. Give a short sarcastic or cynical comment about this topic."}
+        ],
+        max_tokens=50,
+        temperature=0.7
+    )
+    vex_comment = response.choices[0].message.content
+    
+    await ctx.send(f"{vex_comment}\n{gif_url}")
 
 #---CHATTING---#
 
@@ -264,10 +398,10 @@ async def on_message(message):
 
     #---FREE WILL |  5% CHANCE---#
     
-    if message.channel.id == 1366502421991522446 and random.random() < 0.05:
+    if message.channel.id == 1366502421991522446 and random.random() < 0.25:
         try:
             async with message.channel.typing():
-                response = await openai_client.chat.completions.create(
+                response = await openai_client.chat.completions.create(  # Changed from client to openai_client
                     model="gpt-4.1-nano",
                     messages=[
                         {"role": "system", "content": VEX_PROMPT},
