@@ -267,7 +267,7 @@ async def on_message(message):
     if message.channel.id == 1366502421991522446 and random.random() < 0.05:
         try:
             async with message.channel.typing():
-                response = await client.chat.completions.create(
+                response = await openai_client.chat.completions.create(
                     model="gpt-4.1-nano",
                     messages=[
                         {"role": "system", "content": VEX_PROMPT},
