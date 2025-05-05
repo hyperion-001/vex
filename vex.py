@@ -159,6 +159,7 @@ bot = Vex(
 
 ALLOWED_GUILD_ID = 1366452990424256743
 ALLOWED_CHANNEL_ID = 1366502421991522446
+VEX_COLOR = 0x96bfd8  # Blue color for embeds
 
 def allowed_channels():
     async def predicate(ctx):
@@ -225,8 +226,8 @@ async def on_guild_join(guild):
 async def help(ctx):
     embed = Embed(
         title="❗ᴠᴇx | ʜᴇʟᴘ",
-        description="Chatbot for Discord Server: [**Whipped Dreams**](https://discord.gg/n5PGkQ6MQ9)",
-        color=0x96bfd8
+        description="Chatbot for Discord Server: [Whipped Dreams](https://discord.gg/n5PGkQ6MQ9)",
+        color=VEX_COLOR
     )
     
     embed.add_field(
@@ -237,8 +238,8 @@ async def help(ctx):
     
     embed.add_field(
         name="⚡Commands",
-        value="- `!shrug` - Shrugs, not hugs\n"
-              "- `!eyeroll` - Really need a definition?\n"
+        value="- `!shrug` - Get a cynical shrug reaction\n"
+              "- `!eyeroll` - Watch Vex roll his eyes\n"
               "- `!facepalm` - For when things are just too stupid\n"
               "- `!gif [topic]` - Get a GIF with Vex's commentary",
         inline=False
@@ -268,7 +269,14 @@ async def shrug(ctx):
     )
     vex_comment = response.choices[0].message.content
     
-    await ctx.send(f"{vex_comment}\n{gif_url}")
+    # Create an embed for the GIF
+    embed = Embed(
+        description=vex_comment,
+        color=VEX_COLOR
+    )
+    embed.set_image(url=gif_url)
+    
+    await ctx.send(embed=embed)
 
 @bot.command()
 @allowed_channels()
@@ -287,7 +295,14 @@ async def eyeroll(ctx):
     )
     vex_comment = response.choices[0].message.content
     
-    await ctx.send(f"{vex_comment}\n{gif_url}")
+    # Create an embed for the GIF
+    embed = Embed(
+        description=vex_comment,
+        color=VEX_COLOR
+    )
+    embed.set_image(url=gif_url)
+    
+    await ctx.send(embed=embed)
 
 @bot.command()
 @allowed_channels()
@@ -306,7 +321,14 @@ async def facepalm(ctx):
     )
     vex_comment = response.choices[0].message.content
     
-    await ctx.send(f"{vex_comment}\n{gif_url}")
+    # Create an embed for the GIF
+    embed = Embed(
+        description=vex_comment,
+        color=VEX_COLOR
+    )
+    embed.set_image(url=gif_url)
+    
+    await ctx.send(embed=embed)
 
 # Add a generic gif command that takes a search term
 @bot.command()
@@ -331,7 +353,14 @@ async def gif(ctx, *, search_term="random"):
     )
     vex_comment = response.choices[0].message.content
     
-    await ctx.send(f"{vex_comment}\n{gif_url}")
+    # Create an embed for the GIF
+    embed = Embed(
+        description=vex_comment,
+        color=VEX_COLOR
+    )
+    embed.set_image(url=gif_url)
+    
+    await ctx.send(embed=embed)
 
 #---CHATTING---#
 
@@ -406,8 +435,15 @@ async def on_message(message):
                     )
                     vex_comment = response.choices[0].message.content
                     
+                    # Create an embed for the GIF
+                    embed = Embed(
+                        description=vex_comment,
+                        color=VEX_COLOR
+                    )
+                    embed.set_image(url=gif_url)
+                    
                     # Send the GIF with Vex's comment
-                    await message.channel.send(f"{vex_comment}\n{gif_url}")
+                    await message.channel.send(embed=embed)
                 else:
                     # Regular text response (70% of the time)
                     response = await openai_client.chat.completions.create(
@@ -467,7 +503,15 @@ async def spontaneous_vex_chat():
                     )
                     
                     vex_comment = response.choices[0].message.content
-                    await channel.send(f"{vex_comment}\n{gif_url}")
+                    
+                    # Create an embed for the GIF
+                    embed = Embed(
+                        description=vex_comment,
+                        color=VEX_COLOR
+                    )
+                    embed.set_image(url=gif_url)
+                    
+                    await channel.send(embed=embed)
                 else:
                     # Regular spontaneous message
                     prompt = "Start a casual, short conversation with the server — something playful, random, or sweet."
