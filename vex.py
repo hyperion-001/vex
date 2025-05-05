@@ -169,12 +169,16 @@ def allowed_channels():
         return True
     return check(predicate)
 
-# Function to fetch GIFs from Tenor
+# Updated function to fetch GIFs from Tenor, ensuring anime-themed results
 async def get_gif(search_term):
-    """Fetch a random GIF from Tenor based on the search term."""
-    # Default to a generic reaction if no API key
+    """Fetch a random anime GIF from Tenor based on the search term."""
+    # Default to a generic anime reaction if no API key
     if not TENOR_API_KEY:
-        return "https://media.tenor.com/WcfvSwVjtC8AAAAC/whatever-shrug.gif"
+        return "https://media.tenor.com/X5YV7kbQuLgAAAAC/anime-whatever.gif"
+    
+    # Always ensure search includes anime
+    if "anime" not in search_term.lower():
+        search_term = f"anime {search_term}"
     
     # Build URL for the Tenor API
     base_url = "https://tenor.googleapis.com/v2/search"
@@ -196,11 +200,11 @@ async def get_gif(search_term):
                 random_gif = random.choice(gifs)
                 return random_gif["media_formats"]["gif"]["url"]
             else:
-                # Return a fallback GIF if the search fails
-                return "https://media.tenor.com/WcfvSwVjtC8AAAAC/whatever-shrug.gif"
+                # Return a fallback anime GIF if the search fails
+                return "https://media.tenor.com/X5YV7kbQuLgAAAAC/anime-whatever.gif"
     except Exception as e:
         print(f"Error fetching GIF: {e}")
-        return "https://media.tenor.com/WcfvSwVjtC8AAAAC/whatever-shrug.gif"
+        return "https://media.tenor.com/X5YV7kbQuLgAAAAC/anime-whatever.gif"
 
 @bot.event
 async def on_ready():
@@ -255,7 +259,7 @@ async def help(ctx):
 @allowed_channels()
 async def shrug(ctx):
     """Send a random shrugging anime GIF."""
-    gif_url = await get_gif("anime shrug")
+    gif_url = await get_gif("shrug")
     
     # Get Vex's commentary on the shrug
     response = await openai_client.chat.completions.create(
@@ -282,7 +286,7 @@ async def shrug(ctx):
 @allowed_channels()
 async def eyeroll(ctx):
     """Send a random eye rolling GIF."""
-    gif_url = await get_gif("anime eye roll")
+    gif_url = await get_gif("eye roll")
     
     response = await openai_client.chat.completions.create(
         model="gpt-4.1-nano",
@@ -308,7 +312,7 @@ async def eyeroll(ctx):
 @allowed_channels()
 async def facepalm(ctx):
     """Send a random facepalm GIF."""
-    gif_url = await get_gif("anime facepalm")
+    gif_url = await get_gif("facepalm")
     
     response = await openai_client.chat.completions.create(
         model="gpt-4.1-nano",
@@ -330,7 +334,7 @@ async def facepalm(ctx):
     
     await ctx.send(embed=embed)
 
-# Add a generic gif command that takes a search term
+# Generic gif command that takes a search term - now anime-themed
 @bot.command()
 @allowed_channels()
 async def gif(ctx, *, search_term="random"):
@@ -420,7 +424,7 @@ async def on_message(message):
                     )
                     search_term = response.choices[0].message.content.strip().replace('"', '').replace("'", "")
                     
-                    # Get the GIF URL
+                    # Get the GIF URL - the get_gif function now ensures anime GIFs
                     gif_url = await get_gif(search_term)
                     
                     # Get Vex's commentary 
@@ -473,22 +477,23 @@ async def spontaneous_vex_chat():
                 
                 if should_send_gif:
                     # List of possible GIF categories that match Vex's personality
+                    # No need to add "anime" here as the get_gif function now does that automatically
                     gif_categories = [
-                        "anime bored", 
-                        "anime sigh", 
-                        "anime whatever", 
-                        "anime unimpressed",
-                        "anime cynical", 
-                        "anime deadpan", 
-                        "anime dark humor",
-                        "anime eye roll",
-                        "anime sarcastic"
+                        "bored", 
+                        "sigh", 
+                        "whatever", 
+                        "unimpressed",
+                        "cynical", 
+                        "deadpan", 
+                        "dark humor",
+                        "eye roll",
+                        "sarcastic"
                     ]
                     
                     # Choose a random category
                     search_term = random.choice(gif_categories)
                     
-                    # Get a GIF
+                    # Get a GIF - get_gif function now ensures anime GIFs
                     gif_url = await get_gif(search_term)
                     
                     # Get a comment from Vex
