@@ -217,39 +217,6 @@ async def on_guild_join(guild):
         except:
             pass
         await guild.leave()
-        
-#---STM---#
-
-@bot.event
-async def on_message(message):
-    if message.author.bot or message.guild is None:
-        return
-
-    if message.guild.id != ALLOWED_GUILD_ID or message.channel.id != ALLOWED_CHANNEL_ID:
-        return
-
-    chat_history.append(f"{message.author.display_name}: {message.content}")
-
-    chat_summary = "\n".join(chat_history)
-
-    try:
-        response = await openai_client.chat.completions.create(
-            model="gpt-4",
-            messages=[
-                {"role": "system", "content": VEX_PROMPT},
-                {"role": "system", "content": f"Recent chat history:\n{chat_summary}"},
-                {"role": "user", "content": message.content}
-            ]
-        )
-        reply = response.choices[0].message.content.strip()
-        await message.channel.send(reply)
-
-    except Exception as e:
-        print(f"[Vex Error] {e}")
-        await message.channel.send("⚠️ Vex glitched.")
-    
-    # Process commands after handling the message
-    await bot.process_commands(message)
 
 #---HELP COMMAND---#
 
@@ -368,13 +335,23 @@ async def gif(ctx, *, search_term="random"):
 
 #---CHATTING---#
 
+# Consolidated on_message event handler
 @bot.event
 async def on_message(message):
+    # Skip bot messages
     if message.author.bot:
         return
-
-    if bot.user in message.mentions:
-        if message.channel.id == 1366502421991522446:
+    
+    # First process any commands in the message
+    await bot.process_commands(message)
+    
+    # Only process messages in the allowed guild and channel
+    if message.guild and message.guild.id == ALLOWED_GUILD_ID and message.channel.id == ALLOWED_CHANNEL_ID:
+        # Add to chat history
+        chat_history.append(f"{message.author.display_name}: {message.content}")
+        
+        # Handle mentions
+        if bot.user in message.mentions:
             try:
                 async with message.channel.typing():
                     response = await openai_client.chat.completions.create(
@@ -388,35 +365,29 @@ async def on_message(message):
                     )
                     vex_reply = response.choices[0].message.content
                     await message.channel.send(vex_reply)
-
             except Exception as e:
                 print("🔥 Full Traceback for Vex Error:")
                 traceback.print_exc()
                 await message.channel.send("⚠️ Vex glitched. Check the logs.")
-
-    await bot.process_commands(message)
-
-    #---FREE WILL |  5% CHANCE---#
-    
-    if message.channel.id == 1366502421991522446 and random.random() < 0.25:
-        try:
-            async with message.channel.typing():
-                response = await openai_client.chat.completions.create(  # Changed from client to openai_client
-                    model="gpt-4.1-nano",
-                    messages=[
-                        {"role": "system", "content": VEX_PROMPT},
-                        {"role": "user", "content": f"The user said: '{message.content}' — How would Vex respond unprompted?"}
-                    ],
-                    max_tokens=200,
-                    temperature=0.85
-                )
-                vex_reply = response.choices[0].message.content
-                await message.channel.send(vex_reply)
-
-        except Exception as e:
-            print(f"🔥 Error in free-will vex reply: {e}")
-    
-    await bot.process_commands(message)
+            return  # Skip free will response if directly mentioned
+        
+        # Free will response (25% chance)
+        if random.random() < 0.25:
+            try:
+                async with message.channel.typing():
+                    response = await openai_client.chat.completions.create(
+                        model="gpt-4.1-nano",
+                        messages=[
+                            {"role": "system", "content": VEX_PROMPT},
+                            {"role": "user", "content": f"The user said: '{message.content}' — How would Vex respond unprompted?"}
+                        ],
+                        max_tokens=200,
+                        temperature=0.85
+                    )
+                    vex_reply = response.choices[0].message.content
+                    await message.channel.send(vex_reply)
+            except Exception as e:
+                print(f"🔥 Error in free-will vex reply: {e}")
 
 async def spontaneous_vex_chat():
     await bot.wait_until_ready()
