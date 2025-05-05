@@ -225,7 +225,7 @@ async def on_guild_join(guild):
 async def help(ctx):
     embed = Embed(
         title="❗ᴠᴇx | ʜᴇʟᴘ",
-        description="Chatbot for Discord Server: [Whipped Dreams](https://discord.gg/n5PGkQ6MQ9)",
+        description="Chatbot for Discord Server: [**Whipped Dreams**](https://discord.gg/n5PGkQ6MQ9)",
         color=0x96bfd8
     )
     
@@ -237,8 +237,8 @@ async def help(ctx):
     
     embed.add_field(
         name="⚡Commands",
-        value="- `!shrug` - Get a cynical shrug reaction\n"
-              "- `!eyeroll` - Watch Vex roll his eyes\n"
+        value="- `!shrug` - Shrugs, not hugs\n"
+              "- `!eyeroll` - Really need a definition?\n"
               "- `!facepalm` - For when things are just too stupid\n"
               "- `!gif [topic]` - Get a GIF with Vex's commentary",
         inline=False
@@ -374,7 +374,42 @@ async def on_message(message):
         # Free will response (25% chance)
         if random.random() < 0.25:
             try:
-                async with message.channel.typing():
+                # Decide whether to send a text response or a GIF (30% chance for GIF)
+                should_send_gif = random.random() < 0.30
+                
+                if should_send_gif:
+                    # First, use GPT to determine what kind of GIF would be appropriate
+                    response = await openai_client.chat.completions.create(
+                        model="gpt-4.1-nano",
+                        messages=[
+                            {"role": "system", "content": VEX_PROMPT},
+                            {"role": "system", "content": "Based on the user's message, determine an appropriate GIF search term that fits Vex's sardonic personality. Return ONLY the search term, no explanation or additional text."},
+                            {"role": "user", "content": f"The user said: '{message.content}' — What would be a fitting GIF search term for Vex's reaction? (e.g. 'eye roll', 'whatever', 'bored anime', etc.)"}
+                        ],
+                        max_tokens=50,
+                        temperature=0.7
+                    )
+                    search_term = response.choices[0].message.content.strip().replace('"', '').replace("'", "")
+                    
+                    # Get the GIF URL
+                    gif_url = await get_gif(search_term)
+                    
+                    # Get Vex's commentary 
+                    response = await openai_client.chat.completions.create(
+                        model="gpt-4.1-nano",
+                        messages=[
+                            {"role": "system", "content": VEX_PROMPT},
+                            {"role": "user", "content": f"The user said: '{message.content}' — Give a short cynical reaction."}
+                        ],
+                        max_tokens=50,
+                        temperature=0.7
+                    )
+                    vex_comment = response.choices[0].message.content
+                    
+                    # Send the GIF with Vex's comment
+                    await message.channel.send(f"{vex_comment}\n{gif_url}")
+                else:
+                    # Regular text response (70% of the time)
                     response = await openai_client.chat.completions.create(
                         model="gpt-4.1-nano",
                         messages=[
@@ -386,6 +421,7 @@ async def on_message(message):
                     )
                     vex_reply = response.choices[0].message.content
                     await message.channel.send(vex_reply)
+                    
             except Exception as e:
                 print(f"🔥 Error in free-will vex reply: {e}")
 
@@ -396,20 +432,58 @@ async def spontaneous_vex_chat():
     while not bot.is_closed():
         try:
             if random.random() < 0.10:
-                prompt = "Start a casual, short conversation with the server — something playful, random, or sweet."
+                # Decide whether to send a regular message or a random GIF (20% chance for GIF)
+                should_send_gif = random.random() < 0.20
+                
+                if should_send_gif:
+                    # List of possible GIF categories that match Vex's personality
+                    gif_categories = [
+                        "anime bored", 
+                        "anime sigh", 
+                        "anime whatever", 
+                        "anime unimpressed",
+                        "anime cynical", 
+                        "anime deadpan", 
+                        "anime dark humor",
+                        "anime eye roll",
+                        "anime sarcastic"
+                    ]
+                    
+                    # Choose a random category
+                    search_term = random.choice(gif_categories)
+                    
+                    # Get a GIF
+                    gif_url = await get_gif(search_term)
+                    
+                    # Get a comment from Vex
+                    response = await openai_client.chat.completions.create(
+                        model="gpt-4.1-nano",
+                        messages=[
+                            {"role": "system", "content": VEX_PROMPT},
+                            {"role": "user", "content": "Give a random sardonic observation about life, existence, or people that fits with Vex's personality."}
+                        ],
+                        max_tokens=100,
+                        temperature=0.8
+                    )
+                    
+                    vex_comment = response.choices[0].message.content
+                    await channel.send(f"{vex_comment}\n{gif_url}")
+                else:
+                    # Regular spontaneous message
+                    prompt = "Start a casual, short conversation with the server — something playful, random, or sweet."
 
-                response = await openai_client.chat.completions.create(
-                    model="gpt-4.1-nano",
-                    messages=[
-                        {"role": "system", "content": VEX_PROMPT},
-                        {"role": "user", "content": prompt}
-                    ],
-                    max_tokens=100,
-                    temperature=0.8
-                )
+                    response = await openai_client.chat.completions.create(
+                        model="gpt-4.1-nano",
+                        messages=[
+                            {"role": "system", "content": VEX_PROMPT},
+                            {"role": "user", "content": prompt}
+                        ],
+                        max_tokens=100,
+                        temperature=0.8
+                    )
 
-                message = response.choices[0].message.content
-                await channel.send(message)
+                    message = response.choices[0].message.content
+                    await channel.send(message)
 
         except Exception as e:
             print(f"🔥 Error in spontaneous Vex chat: {e}")
