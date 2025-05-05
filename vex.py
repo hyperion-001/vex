@@ -264,7 +264,7 @@ async def on_message(message):
 
     #---FREE WILL |  5% CHANCE---#
     
-    if message.channel.id == 1366502421991522446 and random.random() < 0.25:
+    if message.channel.id == 1366502421991522446 and random.random() < 0.05:
         try:
             async with message.channel.typing():
                 response = await client.chat.completions.create(
