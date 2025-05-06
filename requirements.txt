@@ -1,5 +1,11 @@
+# Core dependencies
 discord.py==2.3.2
+revolt.py>=0.1.1
 httpx>=0.27.0
 python-dotenv
 OpenAI
 PyNaCl
+
+# Optional dependencies for voice (if needed later)
+# pynacl
+# pytube
