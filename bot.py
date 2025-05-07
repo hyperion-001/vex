@@ -17,7 +17,7 @@ load_dotenv()
 
 # Import the multi-platform bot code
 try:
-    from vex_multiplatform import main
+    from vex import main
     logger.info("Starting Vex multi-platform bot...")
     
     # Execute the main function
