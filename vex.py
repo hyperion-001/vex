@@ -732,3 +732,6 @@ async def main():
                 await session.close()
     else:
         logger.error("No bots were started. Check your configuration and tokens.")
+
+if __name__ == "__main__":
+    asyncio.run(main())
