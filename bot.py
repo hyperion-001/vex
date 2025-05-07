@@ -3,6 +3,7 @@ Vex Bot - Multi-platform Discord and Revolt Bot
 """
 import os
 import logging
+import asyncio
 from dotenv import load_dotenv
 
 # Configure logging
@@ -15,24 +16,30 @@ logger = logging.getLogger("vex-bot")
 # Load environment variables from .env file if present
 load_dotenv()
 
-# Import the multi-platform bot code
-try:
-    from vex import main
-    logger.info("Starting Vex multi-platform bot...")
-    
-    # Execute the main function
-    if __name__ == "__main__":
-        import asyncio
-        asyncio.run(main())
-        
-except ImportError as e:
-    logger.error(f"Failed to import multi-platform code: {e}")
-    
-    # Fallback to original Discord-only bot if multi-platform fails
+# Entry point
+if __name__ == "__main__":
     try:
-        logger.info("Attempting to fall back to Discord-only bot...")
-        import vex
-        logger.info("Discord-only bot started.")
-    except ImportError:
-        logger.critical("Could not import either bot implementation. Check your installation.")
-        raise
+        # Try the multi-platform approach
+        from vex import main
+        logger.info("Starting Vex multi-platform bot...")
+        asyncio.run(main())
+    except ImportError as e:
+        logger.error(f"Failed to import multi-platform code: {e}")
+        
+        # Fallback to original Discord-only bot if multi-platform fails
+        try:
+            logger.info("Attempting to fall back to Discord-only bot...")
+            # This import is likely working, but the execution is missing
+            import vex
+            
+            # If vex doesn't have a main() function, it might be expecting to be executed directly
+            # Let's check if it has run function or bot.run
+            if hasattr(vex, 'main'):
+                asyncio.run(vex.main())
+            elif hasattr(vex, 'bot') and hasattr(vex.bot, 'run') and hasattr(vex, 'DISCORD_TOKEN'):
+                vex.bot.run(vex.DISCORD_TOKEN)
+            else:
+                logger.error("Could not find a way to start the bot in the vex module")
+        except Exception as e:
+            logger.critical(f"Could not start bot: {e}")
+            raise
