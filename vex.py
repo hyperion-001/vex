@@ -708,12 +708,12 @@ async def main():
     
     # Start Revolt bot if available
     if REVOLT_AVAILABLE and REVOLT_TOKEN:
-        # Create session for Revolt
-        async with revolt.utils.client_session() as session:
-            revolt_bot = RevoltVexBot(session)
-            revolt_task = asyncio.create_task(revolt_bot.start())
-            tasks.append(revolt_task)
-            logger.info("Revolt bot started")
+        # Create a session that will stay open for the Revolt client
+        session = await revolt.utils.client_session()
+        revolt_bot = RevoltVexBot(session)
+        revolt_task = asyncio.create_task(revolt_bot.start())
+        tasks.append(revolt_task)
+        logger.info("Revolt bot started")
     
     # Run all tasks concurrently
     if tasks:
