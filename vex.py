@@ -708,8 +708,10 @@ async def main():
     
     # Start Revolt bot if available
     if REVOLT_AVAILABLE and REVOLT_TOKEN:
-        # Create a session that will stay open for the Revolt client
-        session = await revolt.utils.client_session()
+        # Create a session directly without using revolt.utils.client_session
+        # as that's meant to be used with async with
+        import aiohttp
+        session = aiohttp.ClientSession()
         revolt_bot = RevoltVexBot(session)
         revolt_task = asyncio.create_task(revolt_bot.start())
         tasks.append(revolt_task)
@@ -724,15 +726,9 @@ async def main():
         except Exception as e:
             logger.error(f"Error running bots: {e}")
             traceback.print_exc()
+        finally:
+            # Close any open sessions when everything is done
+            if REVOLT_AVAILABLE and REVOLT_TOKEN and 'session' in locals():
+                await session.close()
     else:
         logger.error("No bots were started. Check your configuration and tokens.")
-
-# Entry point
-if __name__ == "__main__":
-    try:
-        asyncio.run(main())
-    except KeyboardInterrupt:
-        logger.info("Application terminated by user")
-    except Exception as e:
-        logger.error(f"Fatal error: {e}")
-        traceback.print_exc()
