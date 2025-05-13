@@ -56,8 +56,8 @@ chat_history = deque(maxlen=50)
 VEX_COLOR = 0x96bfd8  # Blue color for embeds
 
 # Constants for Discord
-DISCORD_ALLOWED_GUILD_ID = 1366452990424256743
-DISCORD_ALLOWED_CHANNEL_ID = 1366502421991522446
+DISCORD_ALLOWED_GUILD_IDS = [1366452990424256743, 1266158964840857751]
+DISCORD_ALLOWED_CHANNEL_IDS = [1366502421991522446, 1314974689478574080, 1366829580983468164]
 
 # Constants for Revolt (you'll need to update these with your Revolt server/channel IDs)
 REVOLT_ALLOWED_SERVER_ID = "01JTKR6NHGS5JKW38EK1WAQ2HD"
@@ -349,7 +349,7 @@ if DISCORD_AVAILABLE:
 
         def check_allowed_channel(self, ctx):
             """Check if the command is used in an allowed channel."""
-            if ctx.guild and ctx.guild.id == DISCORD_ALLOWED_GUILD_ID and ctx.channel.id in (DISCORD_ALLOWED_CHANNEL_ID, 1366829580983468164):
+            if ctx.guild and ctx.guild.id in DISCORD_ALLOWED_GUILD_IDS and ctx.channel.id in DISCORD_ALLOWED_CHANNEL_IDS:
                 return True
             else:
                 return False
@@ -360,7 +360,7 @@ if DISCORD_AVAILABLE:
             self.loop.create_task(self.spontaneous_discord_chat())
 
         async def on_guild_join(self, guild):
-            if guild.id != DISCORD_ALLOWED_GUILD_ID:
+            if guild.id not in DISCORD_ALLOWED_GUILD_IDS:
                 logger.warning(f"🚫 Unauthorized Discord server detected: {guild.name}")
                 try:
                     owner = guild.owner
@@ -378,7 +378,7 @@ if DISCORD_AVAILABLE:
             await self.process_commands(message)
             
             # Only process messages in the allowed guild and channel
-            if message.guild and message.guild.id == DISCORD_ALLOWED_GUILD_ID and message.channel.id == DISCORD_ALLOWED_CHANNEL_ID:
+            if message.guild and message.guild.id in DISCORD_ALLOWED_GUILD_IDS and message.channel.id in DISCORD_ALLOWED_CHANNEL_IDS:
                 # Add to chat history
                 chat_history.append(f"{message.author.display_name}: {message.content}")
                 
@@ -440,7 +440,7 @@ if DISCORD_AVAILABLE:
 
         async def spontaneous_discord_chat(self):
             await self.wait_until_ready()
-            channel = self.get_channel(DISCORD_ALLOWED_CHANNEL_ID)
+            channel = self.get_channel(DISCORD_ALLOWED_CHANNEL_IDS[0])  # Use the first channel in the list
 
             while not self.is_closed():
                 try:
