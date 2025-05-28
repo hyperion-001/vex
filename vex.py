@@ -212,7 +212,7 @@ async def get_gif(search_term):
         return "https://media.tenor.com/X5YV7kbQuLgAAAAC/anime-whatever.gif"
 
 # OpenAI API for generating responses
-async def generate_vex_response(prompt, max_tokens=200, temp=0.7):
+async def generate_vex_response(prompt, max_tokens=200, temp=1.2):
     """Generate a response from Vex using OpenAI."""
     try:
         response = await openai_client.chat.completions.create(
