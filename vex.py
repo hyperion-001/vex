@@ -394,8 +394,8 @@ if DISCORD_AVAILABLE:
                         await message.channel.send("⚠️ Vex glitched. Check the logs.")
                     return  # Skip free will response if directly mentioned
                 
-                # Free will response (25% chance)
-                if random.random() < 0.25:
+                # Free will response (10% chance)
+                if random.random() < 0.10:
                     try:
                         # Decide whether to send a text response or a GIF (30% chance for GIF)
                         should_send_gif = random.random() < 0.30
