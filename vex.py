@@ -53,7 +53,7 @@ openai_client = AsyncOpenAI(api_key=OPENAI_API_KEY)
 
 # Chat history and configuration
 chat_history = deque(maxlen=50)
-VEX_COLOR = 0x96bfd8  # Blue color for embeds
+VEX_COLOR = 0xA50808  # Red color for embeds
 
 # Constants for Discord
 DISCORD_ALLOWED_GUILD_IDS = [1366452990424256743, 1266158964840857751, 1257736443263058101]
